@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fiber-boilerplate/config"
 	"fiber-boilerplate/databases"
-	"fiber-boilerplate/models"
+	"fiber-boilerplate/internal/models"
 	"fiber-boilerplate/pkg"
 	"math/rand"
 

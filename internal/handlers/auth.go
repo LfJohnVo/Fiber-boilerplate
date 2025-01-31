@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fiber-boilerplate/databases"
-	"fiber-boilerplate/models"
+	"fiber-boilerplate/internal/models"
 	"strconv"
 	"time"
 

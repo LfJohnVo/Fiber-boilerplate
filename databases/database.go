@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"fiber-boilerplate/config"
-	"fiber-boilerplate/models"
+	"fiber-boilerplate/internal/models"
+	"fiber-boilerplate/utils"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -14,31 +14,43 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var Database *gorm.DB
+var (
+	Database   *gorm.DB
+	ConfigData utils.Config
+)
+
+func LoadDatabaseConfig() error {
+	var err error
+	ConfigData, err = utils.LoadConfig(".")
+	if err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+	return nil
+}
 
 func BuildDatabaseURI() string {
-	dbType := config.GetEnvValue("DBConnection")
-	switch dbType {
+	switch ConfigData.DB_CONNECTION {
 	case "mysql":
 		return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			config.GetEnvValue("DBUser"),
-			config.GetEnvValue("DBPassword"),
-			config.GetEnvValue("DBHost"),
-			config.GetEnvValue("DBPort"),
-			config.GetEnvValue("DBName"),
+			ConfigData.DB_USER,
+			ConfigData.DB_PASSWORD,
+			ConfigData.DB_HOST,
+			ConfigData.DB_PORT,
+			ConfigData.DB_NAME,
 		)
 	case "postgres":
-		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
-			config.GetEnvValue("DBHost"),
-			config.GetEnvValue("DBPort"),
-			config.GetEnvValue("DBUser"),
-			config.GetEnvValue("DBName"),
-			config.GetEnvValue("DBPassword"),
+		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+			ConfigData.DB_HOST,
+			ConfigData.DB_PORT,
+			ConfigData.DB_USER,
+			ConfigData.DB_NAME,
+			ConfigData.DB_PASSWORD,
+			ConfigData.DB_SSL_MODE,
 		)
 	case "sqlite":
-		return config.GetEnvValue("DBName")
+		return ConfigData.DB_NAME
 	default:
-		log.Fatalf("Unsupported database type: %s", dbType)
+		log.Fatalf("Unsupported database type: %s", ConfigData.DB_CONNECTION)
 		return ""
 	}
 }
@@ -46,13 +58,17 @@ func BuildDatabaseURI() string {
 func Connect() error {
 	var err error
 
+	if err := LoadDatabaseConfig(); err != nil {
+		return err
+	}
+
 	dbURI := BuildDatabaseURI()
 	dbConfig := &gorm.Config{
 		SkipDefaultTransaction: true,
 		PrepareStmt:            true,
 	}
 
-	switch config.GetEnvValue("DBConnection") {
+	switch ConfigData.DB_CONNECTION {
 	case "mysql":
 		Database, err = gorm.Open(mysql.Open(dbURI), dbConfig)
 	case "postgres":
@@ -71,7 +87,7 @@ func Connect() error {
 	Database.Logger = logger.Default.LogMode(logger.Info)
 
 	// Migrate models
-	if err := Database.AutoMigrate(&models.User{}, &models.PasswordReset{}); err != nil {
+	if err := Database.AutoMigrate(&models.User{}, &models.PasswordReset{}, &models.Contact{}); err != nil {
 		return fmt.Errorf("failed to migrate models: %w", err)
 	}
 
